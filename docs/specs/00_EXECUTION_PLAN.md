@@ -41,6 +41,7 @@ Entrega solicitada: **A (garantía de auto) + B (compraventa de entradas)**, sec
 - **Offchain (`apps/web`, Next.js API routes):** ledger ARS simulado (SQLite `better-sqlite3`), adaptador Mock MP con idempotency keys, servicio operador que custodia **claves efímeras de testnet por usuario demo** y firma `approve`/`fund`/`settle` en nombre del rol asignado. Panel técnico muestra direcciones y hashes reales de Fuji.
 - **Frontend:** Next.js 16 mobile first, identidad oscura `#101317` + cobalt `#0047FF` (tokens de DESIGN.md/propuesta-identidad), 7 vistas + saldo/carga/retiro, landing con escena Canvas/WebGPU diferida y fallback estático.
 - **Reconciliación:** `1 tARGt = 1 ARS` sólo convención demo; ledger ARS (disponible/en escrow/retirando) jamás debita dos veces ni permite retirar saldo bloqueado; callbacks del mock no son prueba onchain — se exige receipt real antes de habilitar fondos.
+- **Directriz UX (korita, 07/11):** el token **no es protagonista** — la experiencia debe sentirse sencilla "por atrás" para quien la ve. Toda la superficie habla en pesos y lenguaje cotidiano ("cargaste", "quedó protegido", "te llegó"); token, direcciones, red y hashes sólo aparecen en el panel técnico colapsable "Ver comprobante". Esto refuerza D3 (operador demo custodiado) y el copy de todas las vistas.
 
 ## 4. Reparto de trabajo (hijos Devin, máx. 4 activos)
 

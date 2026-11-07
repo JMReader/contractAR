@@ -89,6 +89,7 @@ Cuentas efímeras testnet por usuario (`GET /api/operator/:userId` → `{address
 
 ## 4. Fronteras de confianza (declaradas en UI)
 
+- **Token invisible en la superficie:** la UI habla en pesos ("$600.000 protegidos", "cargar saldo", "retirar a tu cuenta"); el token, la red y los hashes sólo se nombran dentro del panel técnico "Ver comprobante" — existen, son verificables y honestos, pero no son el camino del usuario.
 - Mock MP **no** es prueba onchain: `fund` sólo se habilita tras mint+approve+`fund` con receipt verificado.
 - `1 tARGt = 1 ARS` es convención de demo, no cotización.
 - Retiro completado una sola vez y sólo sobre `available` liberado — nunca sobre `inEscrow`.
