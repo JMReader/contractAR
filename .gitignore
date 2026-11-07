@@ -15,6 +15,9 @@ apps/web/*.tsbuildinfo
 # Datos locales de demo (ledger sqlite, keystore efímero)
 apps/web/data
 
+# Direcciones de deploys locales (la autoridad Fuji es shared/addresses.json)
+shared/addresses.local.json
+
 # Env y secretos
 .env
 .env*.local
