@@ -269,7 +269,8 @@ contract Escrow is ReentrancyGuard {
         _requireNotTerminal(a);
         if (a.state != State.Disputed) revert InvalidState();
         if (msg.sender != a.arbiter) revert NotArbiter();
-        if (toBeneficiary + toDepositor != a.remaining) revert SplitMismatch();
+        // Comparación por resta: suma exacta exigida sin riesgo de overflow.
+        if (toBeneficiary > a.remaining || toDepositor != a.remaining - toBeneficiary) revert SplitMismatch();
 
         uint8 ruling = toBeneficiary == 0 ? RULING_DEPOSITOR : toDepositor == 0 ? RULING_BENEFICIARY : RULING_SPLIT;
         a.state = State.Resolved;
