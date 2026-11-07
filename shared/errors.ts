@@ -18,6 +18,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   PaymentRejected: "El pago fue rechazado.",
   DuplicateOperation: "Esta operación ya fue registrada.",
   WithdrawLocked: "No podés retirar saldo que está protegido en un acuerdo.",
+  InvalidEvidence: "Cargá la evidencia de las dos partes para analizar el caso.",
+  AiUnavailable: "La mediación con IA no está disponible en este momento. Reintentá en unos segundos.",
+  AiInvalidResponse: "La IA devolvió una recomendación inválida. Reintentá.",
 };
 
 export function toHumanError(err: unknown): string {

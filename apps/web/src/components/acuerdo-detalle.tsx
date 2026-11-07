@@ -15,6 +15,7 @@ import {
   type AgreementDetail,
 } from "@/lib/api";
 import { AccionesAcuerdo } from "./acciones-acuerdo";
+import { MediacionIA } from "./mediacion-ia";
 import { Cronologia } from "./cronologia";
 import { PanelComprobante } from "./panel-comprobante";
 import { CopyField } from "./copy-field";
@@ -149,6 +150,10 @@ export function AcuerdoDetalle({ id }: { id: string }) {
               <p className="mt-1 font-bold text-ice">Le toca a: {paso.actor}</p>
               <p className="mt-1 text-sm leading-relaxed">{paso.texto}</p>
             </div>
+          ) : null}
+
+          {d.state === AgreementState.Disputed ? (
+            <MediacionIA id={id} detail={d} onCambio={cargar} />
           ) : null}
 
           {!esTerminal(d.state) ? (

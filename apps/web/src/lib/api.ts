@@ -442,6 +442,53 @@ export async function agreementAction(
   };
 }
 
+// ── Mediación IA (recomendación; el árbitro aplica rule) ─────────────────────
+
+export interface MediationInput {
+  depositorEvidence: string;
+  beneficiaryEvidence: string;
+}
+
+export interface MediationResult {
+  toBeneficiaryPct: number;
+  toDepositorPct: number;
+  confidence: string;
+  reasoning: string;
+  evidenceMissing: string[];
+  /** Unidades mínimas del token, como string (bigint seguro). */
+  recommendedToBeneficiary: string;
+  recommendedToBeneficiaryCents: number;
+  recommendedToDepositorCents: number;
+  remainingCents: number;
+  model?: string;
+  latencyMs?: number;
+}
+
+export async function mediateAgreement(
+  id: string,
+  input: MediationInput,
+): Promise<MediationResult> {
+  const raw = await request<Record<string, unknown>>(
+    `/api/agreements/${encodeURIComponent(id)}/mediate`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+  return {
+    toBeneficiaryPct: num(raw.toBeneficiaryPct) ?? 0,
+    toDepositorPct: num(raw.toDepositorPct) ?? 0,
+    confidence: str(raw.confidence) ?? "baja",
+    reasoning: str(raw.reasoning) ?? "",
+    evidenceMissing: Array.isArray(raw.evidenceMissing)
+      ? raw.evidenceMissing.filter((item): item is string => typeof item === "string")
+      : [],
+    recommendedToBeneficiary: String(raw.recommendedToBeneficiary ?? "0"),
+    recommendedToBeneficiaryCents: num(raw.recommendedToBeneficiaryCents) ?? 0,
+    recommendedToDepositorCents: num(raw.recommendedToDepositorCents) ?? 0,
+    remainingCents: num(raw.remainingCents) ?? 0,
+    model: str(raw.model),
+    latencyMs: num(raw.latencyMs),
+  };
+}
+
 // ── Pagos simulados (Mock MP) y ledger ────────────────────────────────────────
 
 export interface PaymentRef {
