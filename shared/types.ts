@@ -13,6 +13,7 @@ export enum State {
   Settled = 7,
   Disputed = 8,
   Cancelled = 9,
+  OutcomeProposed = 10,
 }
 
 /** Roles que participan en un acuerdo. */
@@ -35,6 +36,8 @@ export interface Agreement {
   conditionsHash: Bytes32;
   state: State;
   tokenDecimals: number;
+  pendingToPayee: bigint;
+  outcomeProposer: Address;
 }
 
 /** Acciones que la wallet conectada puede ejecutar sobre un acuerdo. */

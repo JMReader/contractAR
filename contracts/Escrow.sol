@@ -25,7 +25,8 @@ contract Escrow is ReentrancyGuard {
         Refunded,
         Settled,
         Disputed,
-        Cancelled
+        Cancelled,
+        OutcomeProposed
     }
 
     struct Agreement {
@@ -39,6 +40,8 @@ contract Escrow is ReentrancyGuard {
         bytes32 conditionsHash;
         State state;
         uint8 tokenDecimals;
+        uint256 pendingToPayee;
+        address outcomeProposer;
     }
 
     /// @notice Tope de comision: 2% (200 bps).
@@ -74,6 +77,7 @@ contract Escrow is ReentrancyGuard {
     event Disputed(uint256 indexed id, address indexed by);
     event Settled(uint256 indexed id, uint256 toPayeeNet, uint256 toPayer, uint256 fee);
     event Cancelled(uint256 indexed id);
+    event OutcomeProposed(uint256 indexed id, address indexed proposer, uint256 toPayee);
 
     error ZeroAddress();
     error ZeroAmount();
@@ -82,6 +86,7 @@ contract Escrow is ReentrancyGuard {
     error InvalidState(uint256 id, State current);
     error Unauthorized(address caller);
     error InvalidSettlement(uint256 toPayee, uint256 toPayer, uint256 amount);
+    error InvalidOutcome(uint256 toPayee, uint256 amount);
 
     constructor(address arbiter_, address treasury_) {
         if (arbiter_ == address(0) || treasury_ == address(0)) revert ZeroAddress();
@@ -218,18 +223,46 @@ contract Escrow is ReentrancyGuard {
         uint256 amount = agreement.amount;
         if (toPayee + toPayer > amount) revert InvalidSettlement(toPayee, toPayer, amount);
 
-        uint256 fee = (toPayee * agreement.feeBps) / BPS_DENOMINATOR;
-        uint256 netAmount = toPayee - fee;
-        uint256 toPayerActual = amount - toPayee;
+        _executeSplit(agreement, toPayee);
+    }
 
-        agreement.state = State.Settled;
+    /// @notice Propone un reparto bilateral. Solo payer o payee, desde Funded.
+    /// @dev Mientras hay una propuesta, solo la contraparte del proponente puede reemplazarla.
+    /// @param toPayee Porcion bruta que recibiria el beneficiario (antes del fee).
+    function proposeOutcome(uint256 id, uint256 toPayee) external {
+        Agreement storage agreement = _agreement(id);
+        if (msg.sender != agreement.payer && msg.sender != agreement.payee) {
+            revert Unauthorized(msg.sender);
+        }
+        if (agreement.state != State.Funded && agreement.state != State.OutcomeProposed) {
+            revert InvalidState(id, agreement.state);
+        }
+        if (agreement.state == State.OutcomeProposed && msg.sender == agreement.outcomeProposer) {
+            revert Unauthorized(msg.sender);
+        }
+        if (toPayee > agreement.amount) revert InvalidOutcome(toPayee, agreement.amount);
 
-        IERC20 token = IERC20(agreement.token);
-        if (netAmount > 0) token.safeTransfer(agreement.payee, netAmount);
-        if (fee > 0) token.safeTransfer(treasury, fee);
-        if (toPayerActual > 0) token.safeTransfer(agreement.payer, toPayerActual);
+        agreement.pendingToPayee = toPayee;
+        agreement.outcomeProposer = msg.sender;
+        agreement.state = State.OutcomeProposed;
 
-        emit Settled(id, netAmount, toPayerActual, fee);
+        emit OutcomeProposed(id, msg.sender, toPayee);
+    }
+
+    /// @notice Acepta el reparto propuesto. Solo la contraparte del proponente.
+    function acceptOutcome(uint256 id) external nonReentrant {
+        Agreement storage agreement = _agreement(id);
+        if (agreement.state != State.OutcomeProposed) revert InvalidState(id, agreement.state);
+        if (msg.sender == agreement.outcomeProposer) revert Unauthorized(msg.sender);
+        if (msg.sender != agreement.payer && msg.sender != agreement.payee) {
+            revert Unauthorized(msg.sender);
+        }
+
+        uint256 toPayee = agreement.pendingToPayee;
+        agreement.pendingToPayee = 0;
+        agreement.outcomeProposer = address(0);
+
+        _executeSplit(agreement, toPayee);
     }
 
     /// @notice Cancela un acuerdo sin fondos. Solo el pagador, desde Created o Accepted.
@@ -256,5 +289,22 @@ contract Escrow is ReentrancyGuard {
 
     function _requireState(Agreement storage agreement, State expected) private view {
         if (agreement.state != expected) revert InvalidState(agreement.id, agreement.state);
+    }
+
+    /// @dev Paga el split y deja el acuerdo en Settled. El fee sale solo de la porcion del payee.
+    function _executeSplit(Agreement storage agreement, uint256 toPayee) private {
+        uint256 amount = agreement.amount;
+        uint256 fee = (toPayee * agreement.feeBps) / BPS_DENOMINATOR;
+        uint256 netAmount = toPayee - fee;
+        uint256 toPayerActual = amount - toPayee;
+
+        agreement.state = State.Settled;
+
+        IERC20 token = IERC20(agreement.token);
+        if (netAmount > 0) token.safeTransfer(agreement.payee, netAmount);
+        if (fee > 0) token.safeTransfer(treasury, fee);
+        if (toPayerActual > 0) token.safeTransfer(agreement.payer, toPayerActual);
+
+        emit Settled(agreement.id, netAmount, toPayerActual, fee);
     }
 }

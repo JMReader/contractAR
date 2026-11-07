@@ -56,6 +56,19 @@
   },
   {
     "type": "function",
+    "name": "acceptOutcome",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "arbiter",
     "inputs": [],
     "outputs": [
@@ -215,6 +228,16 @@
             "name": "tokenDecimals",
             "type": "uint8",
             "internalType": "uint8"
+          },
+          {
+            "name": "pendingToPayee",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "outcomeProposer",
+            "type": "address",
+            "internalType": "address"
           }
         ]
       }
@@ -246,6 +269,24 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "proposeOutcome",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "toPayee",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -461,6 +502,31 @@
   },
   {
     "type": "event",
+    "name": "OutcomeProposed",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "proposer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "toPayee",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Refunded",
     "inputs": [
       {
@@ -565,6 +631,22 @@
         "name": "feeBps",
         "type": "uint16",
         "internalType": "uint16"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidOutcome",
+    "inputs": [
+      {
+        "name": "toPayee",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ]
   },

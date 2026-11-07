@@ -247,6 +247,207 @@ contract EscrowTest is Test {
     }
 
     // ---------------------------------------------------------------------
+    // Reclamo bilateral: proposeOutcome / acceptOutcome
+    // ---------------------------------------------------------------------
+
+    function test_ProposeOutcomeByPayerAcceptedByPayee() public {
+        uint256 id = _funded();
+        uint256 toPayee = 180_000e18;
+        uint256 fee = (toPayee * FEE_BPS) / 10_000;
+
+        vm.prank(payer);
+        escrow.proposeOutcome(id, toPayee);
+
+        Escrow.Agreement memory proposed = escrow.getAgreement(id);
+        assertEq(uint256(proposed.state), uint256(Escrow.State.OutcomeProposed));
+        assertEq(proposed.pendingToPayee, toPayee);
+        assertEq(proposed.outcomeProposer, payer);
+
+        vm.prank(payee);
+        escrow.acceptOutcome(id);
+
+        Escrow.Agreement memory settled = escrow.getAgreement(id);
+        assertEq(uint256(settled.state), uint256(Escrow.State.Settled));
+        assertEq(settled.pendingToPayee, 0);
+        assertEq(settled.outcomeProposer, address(0));
+        assertEq(token.balanceOf(payee), toPayee - fee);
+        assertEq(token.balanceOf(treasury), fee);
+        assertEq(token.balanceOf(payer), INITIAL_BALANCE - toPayee);
+        assertEq(token.balanceOf(address(escrow)), 0);
+        assertEq(token.balanceOf(payee) + token.balanceOf(treasury) + token.balanceOf(payer), INITIAL_BALANCE);
+    }
+
+    function test_ProposeOutcomeByPayeeAcceptedByPayer() public {
+        uint256 id = _funded();
+        uint256 toPayee = 300_000e18;
+        uint256 fee = (toPayee * FEE_BPS) / 10_000;
+
+        vm.prank(payee);
+        escrow.proposeOutcome(id, toPayee);
+        assertEq(escrow.getAgreement(id).outcomeProposer, payee);
+
+        vm.prank(payer);
+        escrow.acceptOutcome(id);
+
+        assertEq(uint256(_state(id)), uint256(Escrow.State.Settled));
+        assertEq(token.balanceOf(payee), toPayee - fee);
+        assertEq(token.balanceOf(treasury), fee);
+        assertEq(token.balanceOf(payer), INITIAL_BALANCE - toPayee);
+        assertEq(token.balanceOf(address(escrow)), 0);
+    }
+
+    function test_ProposerCannotAcceptOwnProposal() public {
+        uint256 id = _funded();
+        vm.prank(payer);
+        escrow.proposeOutcome(id, 180_000e18);
+
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(Escrow.Unauthorized.selector, payer));
+        escrow.acceptOutcome(id);
+
+        vm.prank(payee);
+        escrow.acceptOutcome(id);
+
+        uint256 id2 = _funded();
+        vm.prank(payee);
+        escrow.proposeOutcome(id2, 180_000e18);
+
+        vm.prank(payee);
+        vm.expectRevert(abi.encodeWithSelector(Escrow.Unauthorized.selector, payee));
+        escrow.acceptOutcome(id2);
+
+        vm.prank(payer);
+        escrow.acceptOutcome(id2);
+    }
+
+    function test_DoubleProposeBySameActorRevertsAndCounterpartyCanRepropose() public {
+        uint256 id = _funded();
+        vm.prank(payer);
+        escrow.proposeOutcome(id, 180_000e18);
+
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(Escrow.Unauthorized.selector, payer));
+        escrow.proposeOutcome(id, 200_000e18);
+
+        uint256 newToPayee = 240_000e18;
+        vm.prank(payee);
+        escrow.proposeOutcome(id, newToPayee);
+
+        Escrow.Agreement memory proposed = escrow.getAgreement(id);
+        assertEq(proposed.pendingToPayee, newToPayee);
+        assertEq(proposed.outcomeProposer, payee);
+
+        vm.prank(payer);
+        escrow.acceptOutcome(id);
+
+        uint256 fee = (newToPayee * FEE_BPS) / 10_000;
+        assertEq(token.balanceOf(payee), newToPayee - fee);
+        assertEq(token.balanceOf(payer), INITIAL_BALANCE - newToPayee);
+        assertEq(token.balanceOf(address(escrow)), 0);
+    }
+
+    function test_ProposeOutcomeAboveAmountReverts() public {
+        uint256 id = _funded();
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(Escrow.InvalidOutcome.selector, AMOUNT + 1, AMOUNT));
+        escrow.proposeOutcome(id, AMOUNT + 1);
+    }
+
+    function test_ProposeOutcomeOnlyInFundedOrOutcomeProposed() public {
+        uint256 delivered = _delivered();
+        vm.prank(payer);
+        vm.expectRevert(
+            abi.encodeWithSelector(Escrow.InvalidState.selector, delivered, Escrow.State.Delivered)
+        );
+        escrow.proposeOutcome(delivered, 180_000e18);
+
+        uint256 created = _create();
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(Escrow.InvalidState.selector, created, Escrow.State.Created));
+        escrow.proposeOutcome(created, 180_000e18);
+
+        uint256 funded = _funded();
+        vm.prank(outsider);
+        vm.expectRevert(abi.encodeWithSelector(Escrow.Unauthorized.selector, outsider));
+        escrow.proposeOutcome(funded, 180_000e18);
+    }
+
+    function test_AcceptOutcomeInvalidStateReverts() public {
+        uint256 id = _funded();
+        vm.prank(payee);
+        vm.expectRevert(abi.encodeWithSelector(Escrow.InvalidState.selector, id, Escrow.State.Funded));
+        escrow.acceptOutcome(id);
+
+        vm.prank(payer);
+        escrow.proposeOutcome(id, 180_000e18);
+        vm.prank(payee);
+        escrow.acceptOutcome(id);
+
+        vm.prank(payee);
+        vm.expectRevert(abi.encodeWithSelector(Escrow.InvalidState.selector, id, Escrow.State.Settled));
+        escrow.acceptOutcome(id);
+    }
+
+    function test_AcceptOutcomeOnlyCounterparty() public {
+        uint256 id = _funded();
+        vm.prank(payer);
+        escrow.proposeOutcome(id, 180_000e18);
+
+        vm.prank(outsider);
+        vm.expectRevert(abi.encodeWithSelector(Escrow.Unauthorized.selector, outsider));
+        escrow.acceptOutcome(id);
+
+        vm.prank(payee);
+        escrow.acceptOutcome(id);
+    }
+
+    function test_AcceptOutcomeConservesFunds() public {
+        uint256 id = _funded();
+        uint256 toPayee = 123_457e18;
+        uint256 fee = (toPayee * FEE_BPS) / 10_000;
+
+        vm.prank(payee);
+        escrow.proposeOutcome(id, toPayee);
+        vm.prank(payer);
+        escrow.acceptOutcome(id);
+
+        assertEq(token.balanceOf(payee), toPayee - fee);
+        assertEq(token.balanceOf(treasury), fee);
+        assertEq(token.balanceOf(payer), INITIAL_BALANCE - toPayee);
+        assertEq(token.balanceOf(address(escrow)), 0);
+        assertEq(token.balanceOf(payee) + token.balanceOf(treasury) + token.balanceOf(payer), INITIAL_BALANCE);
+    }
+
+    function test_AcceptOutcomeWithSixDecimalToken() public {
+        SixDecimalToken usdc = new SixDecimalToken();
+        uint256 amount = 1_000e6;
+        usdc.mint(payer, amount);
+        vm.prank(payer);
+        usdc.approve(address(escrow), amount);
+
+        vm.prank(payer);
+        uint256 id = escrow.create(payee, address(usdc), amount, FEE_BPS, deadline, CONDITIONS);
+        vm.prank(payee);
+        escrow.accept(id);
+        vm.prank(payer);
+        escrow.fund(id);
+
+        uint256 toPayee = 300e6;
+        vm.prank(payee);
+        escrow.proposeOutcome(id, toPayee);
+        vm.prank(payer);
+        escrow.acceptOutcome(id);
+
+        uint256 fee = (toPayee * FEE_BPS) / 10_000;
+        assertEq(uint256(escrow.getAgreement(id).tokenDecimals), 6);
+        assertEq(usdc.balanceOf(payee), toPayee - fee);
+        assertEq(usdc.balanceOf(treasury), fee);
+        assertEq(usdc.balanceOf(payer), amount - toPayee);
+        assertEq(usdc.balanceOf(address(escrow)), 0);
+        assertEq(fee, 3e6);
+    }
+
+    // ---------------------------------------------------------------------
     // Cancel
     // ---------------------------------------------------------------------
 

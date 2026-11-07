@@ -3,15 +3,15 @@
   "network": "avalanche-fuji",
   "rpcUrl": "https://api.avax-test.network/ext/bc/C/rpc",
   "explorer": "https://testnet.snowtrace.io",
-  "escrow": "0x9784657F06f8c67e3A1B6B42eEB6C22BF3440F18",
-  "token": "0x25805f0a4E17576f76e3E38C392c85D73005cE26",
+  "escrow": "0x73c7c86E665767C6dC2430A928fd3048B8757981",
+  "token": "0xb5177B0f3Ae231a36D4578B125c89d18C62D1F1b",
   "tokenDecimals": 18,
   "tokenSymbol": "tARGt",
   "feeBps": 100,
   "treasury": "0x6745CB1aE8673BA4966b324d6FF4aCCD8510C2A4",
   "arbiter": "0x6745CB1aE8673BA4966b324d6FF4aCCD8510C2A4",
   "deployer": "0x6745CB1aE8673BA4966b324d6FF4aCCD8510C2A4",
-  "deployedAt": "2026-11-07T18:10:51Z",
+  "deployedAt": "2026-11-07T18:22:50Z",
   "verified": true,
   "source": "contracts/script/Deploy.s.sol"
 }

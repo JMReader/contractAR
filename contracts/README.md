@@ -13,8 +13,9 @@ Escrow de pagos protegidos con un ERC-20 de prueba (`tARGt`) en Avalanche Fuji.
 forge test -vv
 ```
 
-Casos cubiertos: fondeo, release con fee, refund, settle parcial 30/70, doble release,
-permisos, disputa + resolución, cancelación, reentrancy y suma inválida en settle.
+Casos cubiertos: fondeo, release con fee, refund, settle parcial 30/70, reclamo bilateral
+(`proposeOutcome`/`acceptOutcome`), doble release, permisos, disputa + resolución, cancelación,
+reentrancy y suma inválida en settle.
 También se prueba un token de 6 decimales para verificar que no se asume 18.
 
 ## Variables de entorno
@@ -87,6 +88,7 @@ Mintea `tARGt` y aprueba el escrow para la wallet indicada.
 
 - Fee de 1% (`feeBps = 100`) sólo sobre la porción que recibe el beneficiario.
 - Devoluciones sin fee.
-- `settle(toPayee, toPayer)` permite reclamo parcial; el remanente no asignado vuelve al pagador.
+- `settle(toPayee, toPayer)` permite reclamo parcial resuelto por el árbitro; el remanente no asignado vuelve al pagador.
+- `proposeOutcome(id, toPayee)` + `acceptOutcome(id)` permiten el reclamo parcial bilateral: una parte propone, la contraparte acepta y se ejecuta el mismo split con fee.
 - El `deadline` es informativo: no dispara liberaciones automáticas.
 - El árbitro del MVP es una dirección mock; ERC-792/Kleros real queda fuera de alcance.
