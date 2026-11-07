@@ -35,23 +35,25 @@
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
-* { box-sizing: border-box; }
+@layer base {
+  * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; }
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font: 15px/1.55 var(--font-sans);
-  -webkit-font-smoothing: antialiased;
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.55 var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button, input, textarea, select { font: inherit; }
+  button, a, input, textarea, select { touch-action: manipulation; }
+  button { cursor: pointer; }
+  button:disabled { cursor: default; opacity: 0.55; }
+  a { color: var(--ice); text-underline-offset: 4px; }
 }
-
-button, input, textarea, select { font: inherit; }
-button, a, input, textarea, select { touch-action: manipulation; }
-button { cursor: pointer; }
-button:disabled { cursor: default; opacity: 0.55; }
-a { color: var(--ice); text-underline-offset: 4px; }
 
 button:focus-visible,
 a:focus-visible,
