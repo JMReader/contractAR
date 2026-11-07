@@ -1,6 +1,6 @@
 {
   "project": "escrow-argt",
-  "phase": "F2",
+  "phase": "F3",
   "phaseStatus": "in-progress",
   "baseSha": {
     "code": "c4fc7ec7247d8ddb111f2b8660313341d3094007",
@@ -20,12 +20,52 @@
     "h4-qa-landing": "e2e + components/landing + docs/demo"
   },
   "tasks": {
-    "pending": ["F3 e2e-local", "F4 fuji+landing", "F5 gate-A", "F6 plantilla-B"],
-    "inProgress": ["F2: H1 contracts (feat/h1-fondos), H2 vistas (feat/h2-interfaz), H3 integración (feat/h3-integracion), H4 landing+QA (feat/h4-landing-qa)"],
+    "pending": [
+      "F3 e2e-local",
+      "F4 fuji+landing",
+      "F5 gate-A",
+      "F6 plantilla-B"
+    ],
+    "inProgress": [
+      "F2: H1 contracts (feat/h1-fondos), H2 vistas (feat/h2-interfaz), H3 integración (feat/h3-integracion), H4 landing+QA (feat/h4-landing-qa)"
+    ],
     "inReview": [],
-    "blocked": ["fuji-deploy: requiere autorización + cuenta con AVAX testnet", "contracts-impl: espera decisión D1 si Nano publica feat/contracts"],
-    "completed": ["F0 inspección + specs propuestas", "F1 base reproducible: install+typecheck+build verdes, forge 1.9.0, skills sincronizadas"]
+    "blocked": [
+      "fuji-deploy: requiere autorización + cuenta con AVAX testnet",
+      "contracts-impl: espera decisión D1 si Nano publica feat/contracts"
+    ],
+    "completed": [
+      "F0 inspección + specs propuestas",
+      "F1 base reproducible: install+typecheck+build verdes, forge 1.9.0, skills sincronizadas"
+    ]
   },
   "lastReport": "https://github.com/JMReader/hackatwin-brain/issues/2#issuecomment-6710718283",
-  "notes": "Repo en scaffolding puro; sin trabajo de Nano en remoto. Decisión clave: cuentas demo efímeras con operador testnet para UX pesos-a-pesos."
+  "notes": "Repo en scaffolding puro; sin trabajo de Nano en remoto. Decisión clave: cuentas demo efímeras con operador testnet para UX pesos-a-pesos.",
+  "updated": "2026-11-07T18:25:00Z",
+  "head": "a71939d",
+  "integrated": [
+    "h1-fondos",
+    "h2-interfaz",
+    "h3-integracion",
+    "h4-landing-qa",
+    "o1-plantilla-b",
+    "o2-simulador"
+  ],
+  "running": [
+    "o3-landing-polish",
+    "o4-app-rn"
+  ],
+  "evidence": {
+    "forge": "68/68",
+    "vitest": "36/36",
+    "smoke": "load→create→accept(deferred onchain)→fund→partial claim→settle, fee 1% exacto, Anvil 43113",
+    "preview": "http://localhost:3000"
+  },
+  "pending": [
+    "integrar O3/O4",
+    "e2e completo",
+    "guion del usuario",
+    "Vercel (Turso+Fuji+token)",
+    "respuesta Nano PR#7"
+  ]
 }
