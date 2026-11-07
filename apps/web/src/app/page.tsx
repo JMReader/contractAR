@@ -170,50 +170,6 @@ export default function Home() {
           </p>
         </section>
 
-        {/* Aviso honesto de demo + panel técnico de la escena y del producto. */}
-        <section id="demo" className="border-t border-line py-12 sm:py-16">
-          <div className="rounded-xl border border-line bg-surface p-5 sm:p-6">
-            <div className="flex flex-wrap items-start gap-4">
-              <span className="mt-0.5 rounded-full border border-line px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.09em] text-coral">
-                Demo
-              </span>
-              <p className="min-w-0 flex-1 text-[14px] leading-relaxed">
-                Carga y retiro de pesos simulados; las operaciones de garantía se registran en una
-                red de pruebas pública. En esta demo no se mueve dinero real ni se promete conversión
-                bancaria.
-              </p>
-            </div>
-          </div>
-
-          <details className="mt-4 rounded-xl border border-line bg-surface">
-            <summary className="cursor-pointer p-5 font-mono text-[12px] uppercase tracking-[0.09em] text-ice">
-              Ver detalle técnico
-            </summary>
-            <ul className="space-y-2 p-5 pt-0 text-[13px] leading-relaxed text-muted">
-              <li>
-                <b className="text-ink">Escena de identidad:</b> esfera ASCII dibujada con Canvas 2D
-                — disponible en todo navegador, sin GPU. Al cargar se sondea WebGPU y el resultado se
-                muestra bajo la escena; la integración real con vgpu/WebGPU es trabajo pendiente
-                (stretch), no lo que está corriendo.
-              </li>
-              <li>
-                <b className="text-ink">Coste:</b> unos 1.100 caracteres por cuadro,
-                devicePixelRatio con tope 2, bucle con requestAnimationFrame. Se pausa fuera del
-                viewport (IntersectionObserver) y con la pestaña oculta (document.hidden).
-              </li>
-              <li>
-                <b className="text-ink">Movimiento reducido:</b> con{" "}
-                <code className="font-mono text-ice">prefers-reduced-motion</code> la escena dibuja
-                un único cuadro estático y no inicia el bucle.
-              </li>
-              <li>
-                <b className="text-ink">Dinero:</b> la interfaz habla en pesos; token, red y hashes
-                viven dentro del comprobante técnico de cada acuerdo. La equivalencia 1 tARGt = 1 ARS
-                es una convención de demo, no una cotización.
-              </li>
-            </ul>
-          </details>
-        </section>
       </main>
 
       <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-line py-8 text-[13px] text-muted">
