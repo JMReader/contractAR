@@ -357,7 +357,7 @@ export async function applyAction(id: string, input: ActionInput): Promise<Actio
     if (!allowed.includes(state)) throw apiErr("InvalidState", 409);
   };
   const assertRole = (...allowed: Role[]) => {
-    if (!allowed.includes(role)) throw apiErr("NotAuthorized", 403);
+    if (role === null || !allowed.includes(role)) throw apiErr("NotAuthorized", 403);
   };
 
   let txHash: Hex | undefined;
