@@ -57,7 +57,7 @@ function migrate(db: Database.Database): void {
       template INTEGER NOT NULL,
       state TEXT NOT NULL,
       creator_user_id TEXT NOT NULL,
-      depositor_user_id TEXT NOT NULL,
+      depositor_user_id TEXT,
       beneficiary_user_id TEXT NOT NULL,
       arbiter_user_id TEXT NOT NULL,
       creator_address TEXT,

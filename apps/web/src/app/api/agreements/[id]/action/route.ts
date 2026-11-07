@@ -18,8 +18,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const result = await applyAction(id, {
       action,
       userId: reqString(b.userId, "userId"),
-      toBeneficiaryARS: optCents(b.toBeneficiaryARS, "toBeneficiaryARS"),
-      toDepositorARS: optCents(b.toDepositorARS, "toDepositorARS"),
+      toBeneficiaryARS: optCents(b.toBeneficiaryARS ?? b.toBeneficiaryCents, "toBeneficiaryARS"),
+      toDepositorARS: optCents(b.toDepositorARS ?? b.toDepositorCents, "toDepositorARS"),
     });
     return json({
       agreementId: result.meta.id,

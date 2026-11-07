@@ -54,7 +54,7 @@ export interface AgreementMeta {
   template: number;
   state: string;
   creatorUserId: string;
-  depositorUserId: string;
+  depositorUserId: string | null;
   beneficiaryUserId: string;
   arbiterUserId: string;
   creatorAddress: string | null;
@@ -80,7 +80,7 @@ interface MetaRow {
   template: number;
   state: string;
   creator_user_id: string;
-  depositor_user_id: string;
+  depositor_user_id: string | null;
   beneficiary_user_id: string;
   arbiter_user_id: string;
   creator_address: string | null;
@@ -152,7 +152,8 @@ export interface CreateAgreementInput {
   parties: { creatorLabel: string; counterpartyLabel: string };
   amountARS: number;
   creatorUserId: string;
-  depositorUserId: string;
+  /** null = la contraparte se asigna al aceptar por el link compartido. */
+  depositorUserId: string | null;
   beneficiaryUserId: string;
   arbiterUserId: string;
   acceptDeadline: string; // ISO
@@ -166,11 +167,13 @@ export async function createAgreement(input: CreateAgreementInput): Promise<{
   const cfg = chainConfig();
   const addresses = {
     creator: ensureUserAccount(input.creatorUserId).address,
-    depositor: ensureUserAccount(input.depositorUserId).address,
+    depositor: input.depositorUserId ? ensureUserAccount(input.depositorUserId).address : null,
     beneficiary: ensureUserAccount(input.beneficiaryUserId).address,
     arbiter: ensureUserAccount(input.arbiterUserId).address,
   };
 
+  // El termsHash firma los términos humanos (roles por nombre, montos, plazos) —
+  // nunca direcciones: así no cambia cuando la contraparte se asigna al aceptar.
   const termsDoc = {
     version: 1,
     template: input.template,
@@ -179,10 +182,7 @@ export async function createAgreement(input: CreateAgreementInput): Promise<{
     parties: input.parties,
     amountARS: input.amountARS,
     feeBps: 100,
-    creator: addresses.creator,
-    depositor: addresses.depositor,
-    beneficiary: addresses.beneficiary,
-    arbiter: addresses.arbiter,
+    roles: ["depositor", "beneficiary", "arbiter"],
     acceptDeadline: input.acceptDeadline,
     reviewDeadline: input.reviewDeadline,
   };
@@ -194,7 +194,9 @@ export async function createAgreement(input: CreateAgreementInput): Promise<{
   let onchainPending = true;
   const txHashes: Record<string, string> = {};
 
-  if (cfg.enabled && cfg.escrowAddress) {
+  // Create onchain sólo cuando ya se conoce al depositante. Si la contraparte
+  // entra por link (depositorUserId null), se difiere al primer accept.
+  if (cfg.enabled && cfg.escrowAddress && addresses.depositor) {
     const res = await signAndSend(input.creatorUserId, {
       to: cfg.escrowAddress,
       abi: ESCROW_ABI,
@@ -341,7 +343,10 @@ function termsDeadline(meta: AgreementMeta, field: "acceptDeadline" | "reviewDea
 export async function applyAction(id: string, input: ActionInput): Promise<ActionResult> {
   const meta = getMeta(id);
   const role = roleOf(meta, input.userId);
-  if (!role) throw apiErr("NotAuthorized", 403);
+  // La contraparte sin rol puede ocupar el asiento de depositante al aceptar.
+  const claimsDepositorSeat =
+    role === null && input.action === "accept" && meta.depositorUserId === null;
+  if (!role && !claimsDepositorSeat) throw apiErr("NotAuthorized", 403);
 
   const cfg = chainConfig();
   const live = cfg.enabled && meta.contractAgreementId !== null;
@@ -372,12 +377,28 @@ export async function applyAction(id: string, input: ActionInput): Promise<Actio
 
   switch (input.action) {
     case "accept": {
-      assertRole("depositor");
+      // La contraparte ocupa el asiento de depositante si está libre (link
+      // compartido); con depositante fijo, sólo ella puede aceptar.
+      if (meta.depositorUserId === null) {
+        if (input.userId === meta.creatorUserId || input.userId === meta.beneficiaryUserId || input.userId === meta.arbiterUserId) {
+          throw apiErr("NotAuthorized", 403);
+        }
+      } else {
+        assertRole("depositor");
+      }
       assertState("Created");
       if (new Date() > termsDeadline(meta, "acceptDeadline")) {
         throw apiErr("DeadlinePassed", 409);
       }
-      if (live) txHash = (await escrowCall("accept", [BigInt(meta.contractAgreementId!)], input.userId)).txHash;
+      if (meta.depositorUserId === null) {
+        meta.depositorUserId = input.userId;
+        meta.depositorAddress = ensureUserAccount(input.userId).address;
+        persistRoleAssignment(meta);
+      }
+      if (cfg.enabled && meta.contractAgreementId === null) {
+        await ensureOnchainCreated(meta, cfg);
+      }
+      if (live || meta.contractAgreementId !== null) txHash = (await escrowCall("accept", [BigInt(meta.contractAgreementId!)], input.userId)).txHash;
       commit(meta, "Accepted", txHash);
       break;
     }
@@ -410,7 +431,7 @@ export async function applyAction(id: string, input: ActionInput): Promise<Actio
         txHashes.push(res.txHash);
       }
       getDb().transaction(() => {
-        ledger.holdForEscrow(meta.depositorUserId, meta.remainingCents, `agr:${id}`, `agr:${id}:fund`);
+        ledger.holdForEscrow(input.userId, meta.remainingCents, `agr:${id}`, `agr:${id}:fund`);
         meta.state = "Funded";
         if (txHash) meta.txHashes.fund = txHash;
         if (txHashes?.length) meta.txHashes.fundPrep = txHashes.slice(0, -1).join(",");
@@ -583,7 +604,7 @@ function commitSettle(
   getDb().transaction(() => {
     ledger.releaseEscrow(
       {
-        depositorId: meta.depositorUserId,
+        depositorId: meta.depositorUserId!,
         beneficiaryId: meta.beneficiaryUserId,
         toBeneficiary: split.toBeneficiary,
         toDepositor: split.toDepositor,
@@ -601,26 +622,179 @@ function commitSettle(
   })();
 }
 
+function persistRoleAssignment(meta: AgreementMeta): void {
+  getDb()
+    .prepare("UPDATE agreements_meta SET depositor_user_id = ?, depositor_address = ?, updated_at = ? WHERE id = ?")
+    .run(meta.depositorUserId, meta.depositorAddress, nowIso(), meta.id);
+}
+
+// create() onchain diferido: corre la primera vez que todos los roles existen
+// (típicamente al primer accept de una contraparte que entró por link).
+async function ensureOnchainCreated(meta: AgreementMeta, cfg: ReturnType<typeof chainConfig>): Promise<void> {
+  if (meta.contractAgreementId !== null || !cfg.escrowAddress) return;
+  if (!meta.depositorAddress || !meta.beneficiaryAddress || !meta.arbiterAddress) return;
+  const doc = JSON.parse(meta.termsJson) as Record<string, unknown>;
+  const res = await signAndSend(meta.creatorUserId, {
+    to: cfg.escrowAddress,
+    abi: ESCROW_ABI,
+    functionName: "create",
+    args: [
+      meta.template,
+      meta.depositorAddress,
+      meta.beneficiaryAddress,
+      meta.arbiterAddress,
+      arsCentsToTokenUnits(meta.amountCents),
+      meta.termsHash,
+      BigInt(Math.floor(Date.parse(String(doc.acceptDeadline)) / 1000)),
+      BigInt(Math.floor(Date.parse(String(doc.reviewDeadline)) / 1000)),
+    ],
+  });
+  meta.txHashes.create = res.txHash;
+  const events = eventsFromReceipt(res.receipt, ESCROW_ABI as never, "AgreementCreated");
+  const created = events[0]?.args as { id?: bigint } | undefined;
+  meta.contractAgreementId = created?.id !== undefined ? Number(created.id) : null;
+  meta.onchainPending = false;
+  saveMeta(meta);
+}
+
+// Lista por usuario: cualquier rol que ocupe en agreements_meta.
+export function listAgreements(userId: string) {
+  const rows = getDb()
+    .prepare(
+      `SELECT * FROM agreements_meta
+       WHERE creator_user_id = ? OR depositor_user_id = ? OR beneficiary_user_id = ? OR arbiter_user_id = ?
+       ORDER BY created_at DESC`,
+    )
+    .all(userId, userId, userId, userId) as MetaRow[];
+  return {
+    agreements: rows.map((r) => {
+      const meta = rowToMeta(r);
+      const doc = JSON.parse(meta.termsJson) as Record<string, unknown>;
+      const parties = (doc.parties ?? {}) as Record<string, unknown>;
+      const role = roleOf(meta, userId);
+      return {
+        id: meta.id,
+        agreementId: meta.id,
+        title: doc.title ?? "Acuerdo",
+        template: meta.template,
+        state: meta.state,
+        amountARS: meta.amountCents,
+        remainingARS: meta.remainingCents,
+        yourRole: role,
+        counterpartyLabel:
+          role === "creator" || role === "beneficiary" ? parties.counterpartyLabel : parties.creatorLabel,
+        createdAt: meta.createdAt,
+      };
+    }),
+  };
+}
+
+const TIMELINE_LABELS: Record<string, string> = {
+  create: "Acuerdo creado",
+  accept: "Términos aceptados",
+  fundPrep: "Fondos preparados",
+  fund: "Depósito fondeado",
+  proposeOutcome: "Propuesta de reparto",
+  acceptOutcome: "Reparto aceptado",
+  dispute: "Disputa abierta",
+  rule: "Fallo del árbitro",
+  refundAfterTimeout: "Devolución por plazo",
+  settle: "Liquidación",
+};
+
+// Acciones habilitadas según estado+rol — espejo de la tabla de applyAction.
+export function actionsFor(state: string, role: Role | null, meta: AgreementMeta) {
+  const now = new Date();
+  const acceptExpired = now > termsDeadline(meta, "acceptDeadline");
+  const reviewExpired = now > termsDeadline(meta, "reviewDeadline");
+  const canClaimDepositorSeat = meta.depositorUserId === null && role === null;
+  const out: { action: AgreementAction; enabled: boolean; reason?: string }[] = [];
+  const push = (action: AgreementAction, enabled: boolean, reason?: string) =>
+    out.push({ action, enabled, ...(reason ? { reason } : {}) });
+
+  push("accept", (role === "depositor" || canClaimDepositorSeat) && state === "Created" && !acceptExpired,
+    acceptExpired ? "Venció el plazo para aceptar" : undefined);
+  push("cancel", (role === "creator" && (state === "Created" || state === "Accepted")) ||
+    (state === "Created" && acceptExpired && (role === "depositor" || role === "beneficiary")));
+  push("fund", role === "depositor" && state === "Accepted");
+  push("proposeOutcome", (role === "depositor" || role === "beneficiary") && (state === "Funded" || state === "OutcomeProposed"));
+  push("acceptOutcome", (role === "depositor" || role === "beneficiary") && state === "OutcomeProposed" &&
+    meta.outcomeProposerUserId !== null &&
+    meta.outcomeProposerUserId !== (role === "depositor" ? meta.depositorUserId : meta.beneficiaryUserId));
+  push("dispute", (role === "depositor" || role === "beneficiary") && (state === "Funded" || state === "OutcomeProposed"));
+  push("rule", role === "arbiter" && state === "Disputed");
+  push("refundAfterTimeout", role === "depositor" && (state === "Funded" || state === "OutcomeProposed") && reviewExpired,
+    reviewExpired ? undefined : "Aún no venció el plazo de revisión");
+  return out;
+}
+
 // Vista pública del acuerdo: metadata + termsHash + estado (onchain si hay
 // contrato cableado y responde; si no, el cache local).
-export async function agreementView(id: string) {
+export async function agreementView(id: string, userId?: string) {
   const meta = getMeta(id);
   const cfg = chainConfig();
   const chain = await readChainState(meta);
+  const state = chain?.state ?? meta.state;
+  const doc = JSON.parse(meta.termsJson) as Record<string, unknown>;
+  const parties = (doc.parties ?? {}) as Record<string, unknown>;
+  const role = userId ? roleOf(meta, userId) : null;
+
+  const ledgerRows = getDb()
+    .prepare("SELECT kind, SUM(amount_cents) AS total FROM ledger_entries WHERE ref LIKE ? GROUP BY kind")
+    .all(`agr:${id}%`) as { kind: string; total: number }[];
+  const sumKind = (k: string) => ledgerRows.find((r) => r.kind === k)?.total ?? 0;
+  const settlement = state === "Settled"
+    ? {
+        toBeneficiaryARS: sumKind("settle_credit") + sumKind("fee_credit"),
+        toDepositorARS: sumKind("refund_credit"),
+        feeARS: sumKind("fee_credit"),
+        txHash: meta.txHashes.acceptOutcome ?? meta.txHashes.rule ?? meta.txHashes.refundAfterTimeout ?? null,
+      }
+    : null;
+
+  const timeline = [
+    { label: "Acuerdo creado", at: meta.createdAt, txHash: meta.txHashes.create ?? null },
+    ...Object.entries(meta.txHashes)
+      .filter(([k]) => k !== "create" && TIMELINE_LABELS[k])
+      .map(([k, txHash]) => ({ label: TIMELINE_LABELS[k], at: meta.updatedAt, txHash })),
+  ];
+
   return {
+    id: meta.id,
     agreementId: meta.id,
     template: meta.template,
-    state: chain?.state ?? meta.state,
+    state,
+    title: doc.title ?? "Acuerdo",
+    terms: doc.terms ?? "",
+    parties: {
+      creatorLabel: parties.creatorLabel ?? "Quien propone",
+      counterpartyLabel: parties.counterpartyLabel ?? "La otra parte",
+    },
     termsHash: meta.termsHash,
-    terms: JSON.parse(meta.termsJson) as Record<string, unknown>,
+    termsHashVerified: termsHashOf(doc) === meta.termsHash,
+    deadlines: { acceptAt: doc.acceptDeadline ?? null, reviewAt: doc.reviewDeadline ?? null },
     roles: {
       creator: { userId: meta.creatorUserId, address: meta.creatorAddress },
       depositor: { userId: meta.depositorUserId, address: meta.depositorAddress },
       beneficiary: { userId: meta.beneficiaryUserId, address: meta.beneficiaryAddress },
       arbiter: { userId: meta.arbiterUserId, address: meta.arbiterAddress },
     },
+    yourRole: role,
     amountARS: meta.amountCents,
     remainingARS: chain?.remainingCents ?? meta.remainingCents,
+    proposal:
+      meta.outcomeProposerUserId && meta.proposedToBeneficiaryCents !== null
+        ? {
+            proposerUserId: meta.outcomeProposerUserId,
+            proposerRole: roleOf(meta, meta.outcomeProposerUserId),
+            toBeneficiaryARS: meta.proposedToBeneficiaryCents,
+            toDepositorARS: meta.remainingCents - meta.proposedToBeneficiaryCents,
+          }
+        : null,
+    settlement,
+    timeline,
+    actions: actionsFor(state, role, meta),
+    network: { chainId: meta.chainId, escrow: cfg.escrowAddress, token: cfg.tokenAddress },
     outcomeProposerUserId: meta.outcomeProposerUserId,
     proposedToBeneficiaryARS: meta.proposedToBeneficiaryCents,
     onchain: {

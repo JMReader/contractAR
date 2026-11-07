@@ -60,7 +60,9 @@ describe("metadata canónica y termsHash", () => {
     const doc = JSON.parse(meta.termsJson);
     expect(doc.amountARS).toBe(600_000_00);
     expect(doc.feeBps).toBe(100);
-    expect(doc.depositor).toMatch(/^0x[0-9a-fA-F]{40}$/);
+    // los términos firmados nombran roles, no direcciones — el hash no cambia
+    // cuando la contraparte ocupa el asiento al aceptar.
+    expect(doc.roles).toContain("depositor");
     // cambiar el monto cambia el hash (P-06: condiciones ligadas al acuerdo)
     expect(termsHashOf({ ...doc, amountARS: 1 })).not.toBe(meta.termsHash);
   });

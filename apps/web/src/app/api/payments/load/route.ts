@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     const b = await body(req);
     const payment = createLoad({
       userId: reqString(b.userId, "userId"),
-      amountARS: reqCents(b.amountARS, "amountARS"),
+      amountARS: reqCents(b.amountARS ?? b.amountCents, "amountARS"),
       idempotencyKey: reqString(b.idempotencyKey, "idempotencyKey"),
     });
     return json({ paymentId: payment.id, status: payment.status, payment }, 201);

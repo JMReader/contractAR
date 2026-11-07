@@ -5,9 +5,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // Metadata + termsHash + estado (del contrato si está cableado, si no el local).
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   return handle(async () => {
     const { id } = await ctx.params;
-    return json(await agreementView(id));
+    const userId = new URL(req.url).searchParams.get("userId") ?? undefined;
+    return json(await agreementView(id, userId));
   });
 }

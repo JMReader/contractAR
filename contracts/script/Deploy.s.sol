@@ -5,6 +5,7 @@ import {Script} from "forge-std/Script.sol";
 import {MockARGt} from "../src/MockARGt.sol";
 import {Escrow} from "../src/Escrow.sol";
 import {MockArbitrator} from "../src/MockArbitrator.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// Deploy local (Anvil) o Fuji autorizado. Escribe shared/addresses.json.
 /// Anvil: forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
@@ -22,8 +23,8 @@ contract Deploy is Script {
         address arbiterOperator = vm.envOr("ARBITER_OPERATOR", ANVIL_DEPLOYER);
 
         vm.startBroadcast(key);
-        token = new MockARGt();
-        escrow = new Escrow(address(token), treasury);
+        token = new MockARGt(ANVIL_DEPLOYER);
+        escrow = new Escrow(token, treasury);
         arbitrator = new MockArbitrator(arbiterOperator);
         vm.stopBroadcast();
 
