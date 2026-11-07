@@ -1,0 +1,99 @@
+/* Landing ContractAR — piezas que Tailwind no expresa: entrada orquestada del
+   hero, halo cobalt de la escena y los controles de la propuesta
+   (propuesta-identidad.html: .btn / .ghost) escritos como clases propias.
+   Ojo: globals.css define `a { color: var(--ice) }` SIN capa, así que gana a
+   cualquier utilidad text-* de Tailwind sobre <a>; por eso los enlaces de esta
+   página llevan clase de módulo, no utilidades de color. */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.65s cubic-bezier(0.22, 0.75, 0.25, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+/* Halo cobalt suave detrás de la esfera — viene de propuesta-identidad.html
+   (radial-gradient #0047ff20). Es la marca, no un glow genérico. */
+.sceneHalo {
+  background: radial-gradient(ellipse at center, rgb(0 71 255 / 0.13), transparent 65%);
+}
+
+/* .btn de la propuesta: cobalt, texto blanco (5.58:1 sobre #0047ff), 48px. */
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 13px 17px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--blue);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.15s, background-color 0.15s;
+}
+.btnPrimary:hover {
+  background: #235eff;
+  transform: translateY(-2px);
+}
+.btnPrimary:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+/* .ghost de la propuesta: borde, sin relleno, texto tinta. */
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 13px 17px;
+  border: 1px solid #8793a5;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.15s, background-color 0.15s;
+}
+.btnGhost:hover {
+  background: #293345;
+}
+.btnGhost:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+/* Nav del header: discreto, con hover de verdad. */
+.navLink {
+  color: var(--muted);
+  text-decoration: none;
+}
+.navLink:hover {
+  color: var(--ink);
+}
+
+/* Enlaces dentro de texto: subrayado real (los <a> heredan sin subrayado por el
+   preflight de Tailwind v4; sin él no hay señal no-cromática, WCAG 1.4.1). */
+.textLink {
+  color: var(--ice);
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+  .btnPrimary,
+  .btnGhost {
+    transition: none;
+  }
+}
