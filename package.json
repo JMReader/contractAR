@@ -1,0 +1,19 @@
+{
+  "name": "contractar",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.30.1",
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
+  },
+  "scripts": {
+    "dev": "pnpm --filter @contractar/web dev",
+    "build": "pnpm --filter @contractar/web build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm --filter @contractar/web lint",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @contractar/web test:e2e",
+    "contracts:build": "cd contracts && forge build",
+    "contracts:test": "cd contracts && forge test"
+  }
+}

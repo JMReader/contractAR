@@ -1,0 +1,27 @@
+node_modules
+.pnpm-store
+
+# Foundry
+contracts/out
+contracts/cache
+contracts/broadcast
+
+# Next
+apps/web/.next
+apps/web/out
+apps/web/next-env.d.ts
+apps/web/*.tsbuildinfo
+
+# Datos locales de demo (ledger sqlite, keystore efímero)
+apps/web/data
+
+# Env y secretos
+.env
+.env*.local
+
+# Tests
+playwright-report
+test-results
+coverage
+
+.DS_Store

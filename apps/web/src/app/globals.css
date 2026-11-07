@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+/* ContractAR — identidad única oscura + cobalt (DESIGN.md / propuesta-identidad) */
+:root {
+  color-scheme: dark;
+  --bg: #101317;
+  --surface: #1c222a;
+  --surface-elevated: #232b35;
+  --ink: #f6f1e8;
+  --muted: #b7c2d0;
+  --blue: #0047ff;
+  --blue-bright: #3b82f6;
+  --ice: #9bb8ff;
+  --green: #6ee7b7;
+  --coral: #ffb4a2;
+  --line: #465267;
+  --focus: #a7c5ff;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-blue: var(--blue);
+  --color-blue-bright: var(--blue-bright);
+  --color-ice: var(--ice);
+  --color-green: var(--green);
+  --color-coral: var(--coral);
+  --color-line: var(--line);
+  --color-focus: var(--focus);
+  --font-sans: "Manrope", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, textarea, select { font: inherit; }
+button, a, input, textarea, select { touch-action: manipulation; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: 0.55; }
+a { color: var(--ice); text-underline-offset: 4px; }
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
