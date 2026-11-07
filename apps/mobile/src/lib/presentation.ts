@@ -39,7 +39,7 @@ export async function presentationRequest(path: string, init?: RequestInit): Pro
         const fee = Math.floor(toB / 100); const toD = d.amountARS - toB;
         s.balances[d.roles.beneficiary.userId] = (s.balances[d.roles.beneficiary.userId] || 0) + toB - fee;
         s.balances[d.roles.depositor.userId] = (s.balances[d.roles.depositor.userId] || 0) + toD;
-        d.settlement = { toBeneficiary: toB - fee, toDepositor: toD, fee }; d.state = toB === 0 ? "Refunded" : "Released"; d.remainingARS = 0;
+        d.settlement = { toBeneficiary: toB - fee, toDepositor: toD, fee }; d.state = "Settled"; d.remainingARS = 0;
       } else if (action === "cancel") d.state = "Cancelled";
       d.timeline.push({ label: `${({ accept: "Condiciones aceptadas", fund: "Depósito en garantía confirmado", proposeOutcome: "Entrega registrada y cierre propuesto", acceptOutcome: "Cierre aceptado", dispute: "Disputa abierta", rule: "Resolución registrada", cancel: "Acuerdo cancelado" } as Raw)[action] || action} · simulación`, at: Date.now() });
       await persist(s); return d;
