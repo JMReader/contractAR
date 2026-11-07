@@ -1,8 +1,25 @@
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 
-let cached: Database.Database | null = null;
+let cached: DatabaseSync | null = null;
+
+// Compat con better-sqlite3: node:sqlite no trae .transaction().
+type AnyFn = (...args: unknown[]) => unknown;
+const proto = DatabaseSync.prototype as unknown as { transaction?: (fn: AnyFn) => AnyFn };
+proto.transaction ??= function (this: DatabaseSync, fn: AnyFn): AnyFn {
+  return (...args: unknown[]) => {
+    this.exec("BEGIN");
+    try {
+      const r = fn(...args);
+      this.exec("COMMIT");
+      return r;
+    } catch (e) {
+      this.exec("ROLLBACK");
+      throw e;
+    }
+  };
+};
 
 export function ledgerDbPath(): string {
   const p =
@@ -12,18 +29,18 @@ export function ledgerDbPath(): string {
   return p === ":memory:" ? p : path.resolve(/*turbopackIgnore: true*/ process.cwd(), p);
 }
 
-export function getDb(): Database.Database {
+export function getDb(): DatabaseSync {
   if (cached) return cached;
   const file = ledgerDbPath();
   if (file !== ":memory:") mkdirSync(path.dirname(file), { recursive: true });
-  cached = new Database(file);
-  cached.pragma("journal_mode = WAL");
-  cached.pragma("foreign_keys = ON");
+  cached = new DatabaseSync(file);
+  cached.exec("PRAGMA journal_mode = WAL");
+  cached.exec("PRAGMA foreign_keys = ON");
   migrate(cached);
   return cached;
 }
 
-function migrate(db: Database.Database): void {
+function migrate(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
