@@ -59,13 +59,15 @@
     "forge": "68/68",
     "vitest": "36/36",
     "smoke": "load→create→accept(deferred onchain)→fund→partial claim→settle, fee 1% exacto, Anvil 43113",
-    "preview": "http://localhost:3000"
+    "preview": "http://localhost:3000",
+    "o5-fuji-readonly": "smoke-fuji.sh vs Fuji real: RULING_SPLIT=2, FEE_BPS=100, owners=Nano 0x6745; acuerdo #1 Settled onchain"
   },
   "pending": [
     "integrar O3/O4",
     "e2e completo",
     "guion del usuario",
     "Vercel (Turso+Fuji+token)",
-    "respuesta Nano PR#7"
-  ]
+    "fuji-write: pasar dirección pública de operador a Nano → AVAX + ownership MockArbitrator/MockARGt (issue #11)"
+  ],
+  "o5-nano-fuji": "contratos adoptados = los nuestros deployados por Nano (escrow 0x4871…2261C). addresses.local.json para deploys Anvil. Issue #11 contestado: timeouts ya tienen enforce onchain (cancelExpired/refundAfterTimeout), árbitro por acuerdo, no comparten privadas. Sin escritura Fuji hasta coordinar clave operador."
 }
