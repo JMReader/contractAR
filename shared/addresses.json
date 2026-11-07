@@ -1,0 +1,11 @@
+{
+  "chainId": 43113,
+  "network": "avalanche-fuji",
+  "rpcUrl": "https://api.avax-test.network/ext/bc/C/rpc",
+  "explorer": "https://testnet.snowtrace.io",
+  "escrow": null,
+  "token": null,
+  "tokenDecimals": 18,
+  "deployedAt": null,
+  "source": "contracts/script/Deploy.s.sol"
+}
