@@ -1,4 +1,4 @@
-import { PRESENTATION, presentationLink, presentationRole } from "../../lib/presentation";
+import { PRESENTATION, presentationLink, presentationRole, isSharedPresentation } from "../../lib/presentation";
 // Ficha del acuerdo: monto, estado, quién debe actuar, acciones según rol y
 // estado, reclamo parcial con montos editables, disputa, cronología y
 // "Ver comprobante" colapsable (ahí sí va lo técnico: hash, red, contrato).
@@ -22,6 +22,9 @@ import {
   getAgreement,
   getLedger,
   humanize,
+  loadPayment,
+  resolvePayment,
+  newIdempotencyKey,
   type Action,
   type AgreementDetail,
 } from "../../lib/api";
@@ -159,6 +162,7 @@ export default function AcuerdoDetalle() {
     );
   }
 
+  const shared = isSharedPresentation(d.id);
   const p = PLANTILLAS[d.template];
   const e = estadoInfo(d.state);
   const paso = proximoPaso(d);
@@ -306,6 +310,16 @@ export default function AcuerdoDetalle() {
         </View>
       </View>
 
+      {shared ? <Card style={{ borderColor: C.ice }}>
+        <Text style={{ color: C.ice, fontSize: 12, fontWeight: "800" }}>VISTA DE LA OTRA PARTE · DEMO</Text>
+        <Text style={st.seccion}>{d.state === "Created" ? "Te compartieron un acuerdo" : d.state === "Accepted" ? "Aceptaste. Ahora protegé el pago" : d.state === "Settled" ? "Dinero liberado · acuerdo finalizado" : "El dinero está protegido"}</Text>
+        <Text style={st.ayuda}>Revisá las condiciones y recorré el proceso de aceptación, depósito y liberación. No se mueve dinero real.</Text>
+        {d.state === "Created" ? <Btn titulo="Revisar y aceptar acuerdo" busy={busy} onPress={() => confirmarAccion({ action: "accept", titulo: "", kind: "money" })} /> : null}
+        {d.state === "Accepted" ? <Btn titulo="Simular carga y depositar" busy={busy} onPress={() => setConfirm({ titulo: "Cargar y proteger el pago", lineas: [{ label: "Monto simulado", valor: formatARS(d.amountCents) }], efecto: "Simulamos un pago aprobado con Mercado Pago y el depósito en garantía. No se realiza ningún cobro real.", cta: "Confirmar depósito simulado", consent: "Entiendo que esta operación es una simulación.", run: () => ejecutar(async () => { const ledger = await getLedger(userId); const missing = Math.max(0, d.amountCents - ledger.available); if (missing) { const pay = await loadPayment(userId, missing, newIdempotencyKey()); await resolvePayment(pay.paymentId, "approved"); } await agreementAction(d.id, { userId, action: "fund" }); }) })} /> : null}
+        {d.state === "Funded" || d.state === "Delivered" ? <Btn titulo={d.template === "sale" ? "Confirmar entrega y liberar pago" : "Confirmar devolución y liberar garantía"} busy={busy} onPress={() => setConfirm({ titulo: "Confirmar cumplimiento y liberar", lineas: [{ label: "Monto del acuerdo", valor: formatARS(d.amountCents) }, { label: "Destino", valor: d.template === "sale" ? p.rol.beneficiary : p.rol.depositor }], efecto: "La demo registra la conformidad de las partes y libera el dinero según las condiciones. Podrás ver el reparto y el comprobante.", cta: "Confirmar liberación simulada", consent: "Confirmo que se cumplieron las condiciones en esta demostración.", run: () => ejecutar(async () => { await agreementAction(d.id, { userId: d.roles.beneficiary.userId!, action: "proposeOutcome", toBeneficiaryCents: d.template === "sale" ? d.amountCents : 0 }); await agreementAction(d.id, { userId, action: "acceptOutcome" }); }) })} /> : null}
+        {d.state === "OutcomeProposed" ? <Btn titulo="Revisar y confirmar liberación" busy={busy} onPress={() => confirmarAccion({ action: "acceptOutcome", titulo: "", kind: "money" })} /> : null}
+        {d.state === "Settled" && d.settlement ? <><Text style={{ color: C.green, fontSize: 27, fontWeight: "800" }}>{formatARS(d.settlement.toBeneficiary + d.settlement.toDepositor)}</Text><Text style={st.ayuda}>{d.template === "sale" ? "Pago liberado al vendedor. El detalle muestra el cargo del servicio." : "Garantía liberada al cliente. Sin cargo por devolución."}</Text></> : null}
+      </Card> : null}
       <Card>
         <View style={st.montoRow}>
           <Text style={st.montoLabel}>{esTerminal(d.state) ? "Monto pactado" : "Protegido"}</Text>
@@ -318,7 +332,7 @@ export default function AcuerdoDetalle() {
         {paso ? <Text style={st.paso}>{paso}</Text> : null}
       </Card>
 
-      {d.state === "Created" ? (
+      {d.state === "Created" && !shared ? (
         <Card>
           <Text style={st.seccion}>Compartí el enlace con {p.rol.depositor.toLowerCase()}</Text>
           <View style={st.partyRow}>
@@ -343,22 +357,22 @@ export default function AcuerdoDetalle() {
         </Card>
       ) : null}
 
-      {PRESENTATION ? <Card>
+      {PRESENTATION && !shared ? <Card>
         <Text style={st.seccion}>Recorrer la demo</Text>
         <Text style={st.ayuda}>Cambiá de parte para presentar el flujo completo. Login y operaciones simulados.</Text>
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>{[{ role: "beneficiary", label: "Quien crea" }, { role: "depositor", label: "Quien paga" }, { role: "arbiter", label: "Árbitro" }].map((r) => <Pressable key={r.role} accessibilityRole="button" onPress={() => ejecutar(async () => { await presentationRole(id!, userId, r.role); })} style={{ minHeight: 44, padding: 12, borderRadius: 10, backgroundColor: d.yourRole === r.role ? C.elevated : C.bg }}><Text style={{ color: C.ice, fontWeight: "700" }}>{r.label}</Text></Pressable>)}</View>
         {d.state === "Accepted" && d.yourRole === "depositor" ? <Btn titulo="Cargar saldo para este acuerdo" onPress={() => router.push("/saldo")} /> : null}
         <Text style={st.ayuda}>El enlace comparte una copia de la demo. Compartí el enlace actualizado después de avanzar; no sincroniza entre teléfonos.</Text>
-        {d.state !== "Created" ? <CopyLink url={enlace} label="Compartir estado actualizado" /> : null}
+        {d.state !== "Created" ? <CopyLink url={enlace} label="Compartir estado actualizado" purpose="result" /> : null}
       </Card> : null}
       {aviso ? <Banner texto={aviso} /> : null}
 
       {/* ── Acciones ─────────────────────────────────────────────────── */}
-      {acciones.length > 0 ||
+      {!shared && (acciones.length > 0 ||
       ((d.state === "Funded" || d.state === "Delivered" || d.state === "OutcomeProposed") &&
         (d.yourRole === "depositor" || d.yourRole === "beneficiary") &&
         habilitada(d, "proposeOutcome")) ||
-      (d.state === "Disputed" && d.yourRole === "arbiter" && habilitada(d, "rule")) ? (
+      (d.state === "Disputed" && d.yourRole === "arbiter" && habilitada(d, "rule"))) ? (
         <Card>
           <Text style={st.seccion}>Acciones</Text>
 
@@ -488,6 +502,7 @@ export default function AcuerdoDetalle() {
         </Card>
       ) : null}
 
+      {shared && d.state !== "Created" ? <Card><Text style={st.seccion}>Enviar el resultado</Text><Text style={st.ayuda}>Compartí este enlace actualizado para mostrar la aceptación o la liberación a quien creó el acuerdo.</Text><CopyLink url={enlace} label="Enlace con el estado actualizado" purpose="result" /></Card> : null}
       {d.settlement && esTerminal(d.state) ? (
         <Card style={{ borderColor: C.green + "55" }}>
           <Text style={st.seccion}>Cómo quedó el reparto</Text>

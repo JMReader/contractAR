@@ -1,3 +1,4 @@
+import { getUserId, setUserId } from "./session";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
@@ -35,7 +36,9 @@ export async function presentationRequest(path: string, init?: RequestInit): Pro
       else if (action === "proposeOutcome" && ["Funded", "Delivered"].includes(d.state)) { d.state = "OutcomeProposed"; d.outcomeProposerUserId = uid; d.proposedToBeneficiaryARS = b.toBeneficiaryARS; }
       else if (action === "dispute") d.state = "Disputed";
       else if (["acceptOutcome", "rule", "refundAfterTimeout"].includes(action)) {
+        if ((action === "acceptOutcome" && d.state !== "OutcomeProposed") || (action === "rule" && d.state !== "Disputed") || (action === "refundAfterTimeout" && !["Funded", "Delivered", "OutcomeProposed"].includes(d.state))) throw new Error("El acuerdo ya cambió de estado. Actualizá la vista.");
         const toB = action === "refundAfterTimeout" ? 0 : action === "rule" ? b.toBeneficiaryARS : d.proposedToBeneficiaryARS;
+        if (!Number.isSafeInteger(toB) || toB < 0 || toB > d.amountARS) throw new Error("El reparto no coincide con el monto del acuerdo.");
         const fee = Math.floor(toB / 100); const toD = d.amountARS - toB;
         s.balances[d.roles.beneficiary.userId] = (s.balances[d.roles.beneficiary.userId] || 0) + toB - fee;
         s.balances[d.roles.depositor.userId] = (s.balances[d.roles.depositor.userId] || 0) + toD;
@@ -58,15 +61,30 @@ export async function presentationRequest(path: string, init?: RequestInit): Pro
 export async function importPresentationSnapshot() {
   if (!PRESENTATION || Platform.OS !== "web") return;
   const params = new URLSearchParams(window.location.search); const raw = params.get("acuerdo"); if (!raw) return;
-  try {
-    const d = JSON.parse(raw); if (typeof d.id !== "string" || !d.roles || !Number.isSafeInteger(d.amountARS) || d.amountARS <= 0 || !d.terms || !Array.isArray(d.timeline)) return;
-    const s = await read(); s.agreements = [d, ...s.agreements.filter((a) => a.id !== d.id)]; await persist(s);
-    sessionStorage.setItem("contractar.return", `/acuerdo/${d.id}`);
-  } catch {}
+  let d: Raw;
+  try { d = JSON.parse(raw); } catch { return; }
+  if (typeof d.id !== "string" || !d.roles?.creator || !d.roles?.beneficiary || !d.roles?.depositor || !Number.isSafeInteger(d.amountARS) || d.amountARS <= 0 || !d.terms || !Array.isArray(d.timeline)) return;
+  const s = await read();
+  const importedKey = `contractar.imported.${d.id}`;
+  if (sessionStorage.getItem(importedKey) === raw && s.agreements.some((a) => a.id === d.id)) return;
+  if (params.get("vista") === "contraparte") {
+    let uid = await getUserId();
+    if (!uid || uid === d.roles.beneficiary.userId || uid === d.roles.creator.userId) uid = `invitado-${d.id}`;
+    await setUserId(uid);
+    d.roles.depositor.userId = uid;
+    sessionStorage.setItem(`contractar.shared.${d.id}`, "true");
+  }
+  s.agreements = [d, ...s.agreements.filter((a) => a.id !== d.id)]; await persist(s);
+  sessionStorage.setItem(importedKey, raw);
+  sessionStorage.setItem("contractar.return", `/acuerdo/${d.id}`);
+  window.history.replaceState(null, "", `/acuerdo/${encodeURIComponent(d.id)}`);
+}
+export function isSharedPresentation(id: string) {
+  return PRESENTATION && Platform.OS === "web" && sessionStorage.getItem(`contractar.shared.${id}`) === "true";
 }
 export async function presentationLink(id: string) {
   const s = await read(); const d = s.agreements.find((a) => a.id === id);
-  return `${window.location.origin}/acuerdo/${id}?acuerdo=${encodeURIComponent(JSON.stringify(d))}`;
+  return `${window.location.origin}/acuerdo/${encodeURIComponent(id)}?vista=contraparte&acuerdo=${encodeURIComponent(JSON.stringify(d))}`;
 }
 export async function presentationRole(id: string, uid: string, role: string) {
   const s = await read(); const d = s.agreements.find((a) => a.id === id); if (!d) return;

@@ -287,7 +287,7 @@ export function Banner({ texto }: { texto: string }) {
 // Campo con el enlace + botón copiar que se convierte en check; además share
 // nativo porque la contraparte acepta por link desde otro dispositivo.
 
-export function CopyLink({ url, label }: { url: string; label: string }) {
+export function CopyLink({ url, label, purpose = "accept" }: { url: string; label: string; purpose?: "accept" | "result" }) {
   const [copiado, setCopiado] = useState(false);
   const sheen = useSharedValue(-80);
   const [anchoRow, setAnchoRow] = useState(0);
@@ -354,8 +354,10 @@ export function CopyLink({ url, label }: { url: string; label: string }) {
           )}
         </Pressable>
       </View>
+      <Btn titulo="Enviar por WhatsApp" onPress={() => void Linking.openURL(`https://wa.me/?text=${encodeURIComponent(`${purpose === "result" ? "Te comparto el resultado actualizado de nuestro acuerdo" : "Te comparto nuestro acuerdo para revisar y aceptar"} en la demo de ContractAR: ${url}`)}`)} />
+      <Btn titulo="Abrir enlace compartido" variant="ghost" onPress={() => void Linking.openURL(url)} />
       <Btn
-        titulo={copiado ? "Copiado" : "Compartir enlace de aceptación"}
+        titulo={copiado ? "Copiado" : "Más opciones para compartir"}
         variant="secondary"
         icono={<IconShare size={18} color={C.ice} />}
         onPress={() => void compartir()}
