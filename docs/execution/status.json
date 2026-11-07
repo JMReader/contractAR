@@ -26,6 +26,6 @@
     "blocked": ["fuji-deploy: requiere autorización + cuenta con AVAX testnet", "contracts-impl: espera decisión D1 si Nano publica feat/contracts"],
     "completed": ["F0 inspección + specs propuestas"]
   },
-  "lastReport": null,
+  "lastReport": "https://github.com/JMReader/hackatwin-brain/issues/2#issuecomment-6710718283",
   "notes": "Repo en scaffolding puro; sin trabajo de Nano en remoto. Decisión clave: cuentas demo efímeras con operador testnet para UX pesos-a-pesos."
 }
