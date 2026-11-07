@@ -1,0 +1,15 @@
+# Secretos
+.env
+.env.*
+!.env.example
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# Node
+node_modules/
+.next/
+
+.DS_Store
