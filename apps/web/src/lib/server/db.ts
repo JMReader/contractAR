@@ -5,7 +5,9 @@ import path from "node:path";
 let cached: Database.Database | null = null;
 
 export function ledgerDbPath(): string {
-  const p = process.env.LEDGER_DB_PATH?.trim() || "data/ledger.db";
+  const p =
+    process.env.LEDGER_DB_PATH?.trim() ||
+    (process.env.VERCEL ? "/tmp/ledger.db" : "data/ledger.db");
   // turbopackIgnore: path env-configurado a data/ (gitignored), no trazable.
   return p === ":memory:" ? p : path.resolve(/*turbopackIgnore: true*/ process.cwd(), p);
 }
