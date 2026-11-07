@@ -99,11 +99,7 @@ export default function Home() {
               </Link>
             </div>
             <p className={`${styles.rise} mt-5 text-[13px] text-muted`} style={delay(360)}>
-              Demo de hackatón — carga y retiro de pesos simulados.{" "}
-              <a href="#demo" className={styles.textLink}>
-                Ver el aviso completo
-              </a>
-              .
+              Demo de hackatón — carga y retiro de pesos simulados.
             </p>
           </div>
           <div className={styles.rise} style={delay(220)}>
